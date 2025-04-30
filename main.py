@@ -37,7 +37,7 @@ llm_attr = LLMGradientAttribution(lig, tokenizer)
 # Tokens to skip during attribution
 skip_tokens = [1]
 
-def process_prompts_side_by_side(cm_prompts, cmp_prompts):
+def process_prompts(cm_prompts, cmp_prompts):
     os.makedirs("sequence_attributions", exist_ok=True)
     os.makedirs("token_attributions", exist_ok=True)
 
