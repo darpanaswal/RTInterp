@@ -30,6 +30,9 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
+lig = LayerIntegratedGradients(model, layer=model.model.embed_tokens)
+llm_attr = LLMGradientAttribution(lig, tokenizer)
+
 # Tokens to skip during attribution
 skip_tokens = [1]
 
