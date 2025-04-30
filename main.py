@@ -9,7 +9,7 @@ HF_TOKEN += "BqvApw"
 HF_TOKEN += "HjMQuTOALqZKRpRBzEUL"
 login(token = HF_TOKEN)
 
-df = pd.read_csv("/kaggle/input/redteaminterp/cm_cmp_concatenated.csv")
+df = pd.read_csv("cm_cmp_concatenated.csv")
 cm = df['text'][:362]
 cmp = df['text'][362:]
 
