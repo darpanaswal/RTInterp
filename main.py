@@ -1,6 +1,7 @@
 import os
 import torch
 import pandas as pd
+import matplotlib.pyplot as plt
 from huggingface_hub import login
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from captum.attr import LLMGradientAttribution, LayerIntegratedGradients, TextTokenInput
