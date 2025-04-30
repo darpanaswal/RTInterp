@@ -1,3 +1,4 @@
+import os
 import torch
 import pandas as pd
 from huggingface_hub import login
@@ -9,9 +10,10 @@ HF_TOKEN += "BqvApw"
 HF_TOKEN += "HjMQuTOALqZKRpRBzEUL"
 login(token = HF_TOKEN)
 
-df = pd.read_csv("cm_cmp_concatenated.csv")
-cm = df['text'][:362]
-cmp = df['text'][362:]
+df = pd.read_csv("interpolated_data.csv")
+cm = df['cm']
+safe_responses = df['cm_response']
+cmp = df['cmp']
 
 if torch.cuda.is_available():
     device = torch.device("cuda")
@@ -28,20 +30,45 @@ model = AutoModelForCausalLM.from_pretrained(
     device_map="auto"
 )
 
-lig = LayerIntegratedGradients(model, layer=model.model.embed_tokens)
-llm_attr = LLMGradientAttribution(lig, tokenizer)
-
-cm_prompt = cm.iloc[0]
-cmp_prompt = cmp.iloc[0]
-safe_response = "I cannot provide information or guidance on illegal or harmful activities, including medical experiments without consent. Can I help you with something else?"
-
+# Tokens to skip during attribution
 skip_tokens = [1]
-inp = TextTokenInput(
-    cm_prompt,
-    tokenizer,
-    skip_tokens=skip_tokens,
-)
 
-attr_res = llm_attr.attribute(inp, target=safe_response, skip_tokens=skip_tokens)
+def process_prompts(cm_prompts, cmp_prompts):
+    max_len = max(len(cm_prompts), len(cmp_prompts))
+    
+    for i in range(max_len):
+        # Process sequence attribution plots
+        for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
+            if i < len(prompt_list):
+                print(f"Processing {label} sequence attribution for prompt {i+1}/{len(prompt_list)}")
+                try:
+                    inp = TextTokenInput(prompt_list[i], tokenizer, skip_tokens=skip_tokens)
+                    attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
 
-attr_res.plot_seq_attr(show=True)
+                    fig_seq, _ = attr_res.plot_seq_attr(show=False)
+                    seq_filename = f"{label}_seq_attribution_plot_{i:03d}.png"
+                    fig_seq.savefig(seq_filename, dpi=300, bbox_inches='tight')
+                    plt.close(fig_seq)
+                except Exception as e:
+                    print(f"Failed {label} sequence attribution for prompt {i}: {e}")
+
+    for i in range(max_len):
+        # Process token attribution plots
+        for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
+            if i < len(prompt_list):
+                print(f"Processing {label} token attribution for prompt {i+1}/{len(prompt_list)}")
+                try:
+                    inp = TextTokenInput(prompt_list[i], tokenizer, skip_tokens=skip_tokens)
+                    attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
+
+                    fig_tok, _ = attr_res.plot_token_attr(show=False)
+                    tok_filename = f"{label}_token_attribution_plot_{i:03d}.png"
+                    fig_tok.savefig(tok_filename, dpi=300, bbox_inches='tight')
+                    plt.close(fig_tok)
+                except Exception as e:
+                    print(f"Failed {label} token attribution for prompt {i}: {e}")
+
+# Process all cm and cmp prompts
+process_prompts(cm, cmp)
+
+print("All attribution plots saved.")
