@@ -28,10 +28,12 @@ tokenizer.pad_token = tokenizer.eos_token
 
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Meta-Llama-3-8B-Instruct",
-    device_map="auto"
+    device_map="auto",  # Let Accelerate decide optimal placement
+    offload_folder="offload",  # Folder where offloaded weights will be stored
+    offload_state_dict=True  # Ensures offload actually triggers
 )
-analysis_layer = model.model.embed_tokens
-layer_name = "embed_tokens"  # You can make this dynamic if needed from the object
+analysis_layer = model.model.layers[15]
+layer_name = "layer_15"  # You can make this dynamic if needed from the object
 
 lig = LayerIntegratedGradients(model, layer=analysis_layer)
 llm_attr = LLMGradientAttribution(lig, tokenizer)
