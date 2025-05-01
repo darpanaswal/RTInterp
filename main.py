@@ -32,23 +32,29 @@ model = AutoModelForCausalLM.from_pretrained(
     offload_folder="offload",  # Folder where offloaded weights will be stored
     offload_state_dict=True  # Ensures offload actually triggers
 )
-analysis_layer = model.model.layers[15]
-layer_name = "layer_15"  # You can make this dynamic if needed from the object
+analysis_layer = model.model.embed_tokens
+layer_name = "embedding"  # You can make this dynamic if needed from the object
 
 lig = LayerIntegratedGradients(model, layer=analysis_layer)
 llm_attr = LLMGradientAttribution(lig, tokenizer)
 
 # Tokens to skip during attribution
-skip_tokens = [1]
+skip_tokens = ['<|begin_of_text|>']
 
 def process_sequence_attributions(cm_prompts, cmp_prompts, prefix):
-    dir_name = f"{prefix}_sequence_attributions"
-    os.makedirs(dir_name, exist_ok=True)
+    base_dir = f"{prefix}_sequence_attributions"
+    os.makedirs(base_dir, exist_ok=True)
+
+    # Create subdirectories for cm and cmp
+    cm_dir = os.path.join(base_dir, "cm")
+    cmp_dir = os.path.join(base_dir, "cmp")
+    os.makedirs(cm_dir, exist_ok=True)
+    os.makedirs(cmp_dir, exist_ok=True)
 
     max_len = max(len(cm_prompts), len(cmp_prompts))
 
-    for i in range(15 - 1, -1, -1):
-        for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
+    for i in range(max_len):
+        for label, prompt_list, sub_dir in [('cm', cm_prompts, cm_dir), ('cmp', cmp_prompts, cmp_dir)]:
             if i < len(prompt_list):
                 print(f"Processing {label} sequence attribution for prompt {i+1}/{len(prompt_list)}")
                 try:
@@ -56,20 +62,26 @@ def process_sequence_attributions(cm_prompts, cmp_prompts, prefix):
                     attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
 
                     fig_seq, _ = attr_res.plot_seq_attr(show=False)
-                    seq_filename = f"{dir_name}/{label}_seq_attribution_plot_{i:03d}.png"
+                    seq_filename = os.path.join(sub_dir, f"{label}_seq_attribution_plot_{i:03d}.png")
                     fig_seq.savefig(seq_filename, dpi=300, bbox_inches='tight')
                     plt.close(fig_seq)
                 except Exception as e:
                     print(f"Failed {label} sequence attribution for prompt {i}: {e}")
 
 def process_token_attributions(cm_prompts, cmp_prompts, prefix):
-    dir_name = f"{prefix}_token_attributions"
-    os.makedirs(dir_name, exist_ok=True)
+    base_dir = f"{prefix}_token_attributions"
+    os.makedirs(base_dir, exist_ok=True)
+
+    # Create subdirectories for cm and cmp
+    cm_dir = os.path.join(base_dir, "cm")
+    cmp_dir = os.path.join(base_dir, "cmp")
+    os.makedirs(cm_dir, exist_ok=True)
+    os.makedirs(cmp_dir, exist_ok=True)
 
     max_len = max(len(cm_prompts), len(cmp_prompts))
 
-    for i in range(15 - 1, -1, -1):
-        for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
+    for i in range(max_len):
+        for label, prompt_list, sub_dir in [('cm', cm_prompts, cm_dir), ('cmp', cmp_prompts, cmp_dir)]:
             if i < len(prompt_list):
                 print(f"Processing {label} token attribution for prompt {i+1}/{len(prompt_list)}")
                 try:
@@ -77,7 +89,7 @@ def process_token_attributions(cm_prompts, cmp_prompts, prefix):
                     attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
 
                     fig_tok, _ = attr_res.plot_token_attr(show=False)
-                    tok_filename = f"{dir_name}/{label}_token_attribution_plot_{i:03d}.png"
+                    tok_filename = os.path.join(sub_dir, f"{label}_token_attribution_plot_{i:03d}.png")
                     fig_tok.savefig(tok_filename, dpi=300, bbox_inches='tight')
                     plt.close(fig_tok)
                 except Exception as e:
