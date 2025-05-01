@@ -47,7 +47,7 @@ def process_sequence_attributions(cm_prompts, cmp_prompts, prefix):
 
     max_len = max(len(cm_prompts), len(cmp_prompts))
 
-    for i in range(max_len - 1, -1, -1):
+    for i in range(15 - 1, -1, -1):
         for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
             if i < len(prompt_list):
                 print(f"Processing {label} sequence attribution for prompt {i+1}/{len(prompt_list)}")
