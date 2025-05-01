@@ -6,9 +6,7 @@ from huggingface_hub import login
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from captum.attr import LLMGradientAttribution, LayerIntegratedGradients, TextTokenInput
 
-HF_TOKEN = "hf_bgSZTAFS"
-HF_TOKEN += "BqvApw"
-HF_TOKEN += "HjMQuTOALqZKRpRBzEUL"
+HF_TOKEN = ""
 login(token = HF_TOKEN)
 
 df = pd.read_csv("interpolated_data.csv")
