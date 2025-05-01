@@ -30,21 +30,22 @@ model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Meta-Llama-3-8B-Instruct",
     device_map="auto"
 )
+analysis_layer = model.model.embed_tokens
+layer_name = "embed_tokens"  # You can make this dynamic if needed from the object
 
-lig = LayerIntegratedGradients(model, layer=model.model.embed_tokens)
+lig = LayerIntegratedGradients(model, layer=analysis_layer)
 llm_attr = LLMGradientAttribution(lig, tokenizer)
 
 # Tokens to skip during attribution
 skip_tokens = [1]
 
-def process_prompts(cm_prompts, cmp_prompts):
-    os.makedirs("sequence_attributions", exist_ok=True)
-    os.makedirs("token_attributions", exist_ok=True)
+def process_sequence_attributions(cm_prompts, cmp_prompts, prefix):
+    dir_name = f"{prefix}_sequence_attributions"
+    os.makedirs(dir_name, exist_ok=True)
 
     max_len = max(len(cm_prompts), len(cmp_prompts))
 
-    for i in range(max_len):
-        # Process sequence attribution plots
+    for i in range(max_len - 1, -1, -1):
         for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
             if i < len(prompt_list):
                 print(f"Processing {label} sequence attribution for prompt {i+1}/{len(prompt_list)}")
@@ -53,14 +54,19 @@ def process_prompts(cm_prompts, cmp_prompts):
                     attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
 
                     fig_seq, _ = attr_res.plot_seq_attr(show=False)
-                    seq_filename = f"sequence_attributions/{label}_seq_attribution_plot_{i:03d}.png"
+                    seq_filename = f"{dir_name}/{label}_seq_attribution_plot_{i:03d}.png"
                     fig_seq.savefig(seq_filename, dpi=300, bbox_inches='tight')
                     plt.close(fig_seq)
                 except Exception as e:
                     print(f"Failed {label} sequence attribution for prompt {i}: {e}")
 
-    for i in range(max_len):
-        # Process token attribution plots
+def process_token_attributions(cm_prompts, cmp_prompts, prefix):
+    dir_name = f"{prefix}_token_attributions"
+    os.makedirs(dir_name, exist_ok=True)
+
+    max_len = max(len(cm_prompts), len(cmp_prompts))
+
+    for i in range(max_len - 1, -1, -1):
         for label, prompt_list in [('cm', cm_prompts), ('cmp', cmp_prompts)]:
             if i < len(prompt_list):
                 print(f"Processing {label} token attribution for prompt {i+1}/{len(prompt_list)}")
@@ -69,12 +75,13 @@ def process_prompts(cm_prompts, cmp_prompts):
                     attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
 
                     fig_tok, _ = attr_res.plot_token_attr(show=False)
-                    tok_filename = f"token_attributions/{label}_token_attribution_plot_{i:03d}.png"
+                    tok_filename = f"{dir_name}/{label}_token_attribution_plot_{i:03d}.png"
                     fig_tok.savefig(tok_filename, dpi=300, bbox_inches='tight')
                     plt.close(fig_tok)
                 except Exception as e:
                     print(f"Failed {label} token attribution for prompt {i}: {e}")
 
-# Process all cm and cmp prompts
-process_prompts(cm, cmp)
+
+# Run both functions
+process_sequence_attributions(cm, cmp, prefix=layer_name)
 print("All attribution plots saved.")
