@@ -30,8 +30,8 @@ model = AutoModelForCausalLM.from_pretrained(
     offload_folder="offload",  # Folder where offloaded weights will be stored
     offload_state_dict=True  # Ensures offload actually triggers
 )
-analysis_layer = model.model.embed_tokens
-layer_name = "embedding"  # You can make this dynamic if needed from the object
+analysis_layer = model.model.layers[0]
+layer_name = "layer1"  # You can make this dynamic if needed from the object
 
 lig = LayerIntegratedGradients(model, layer=analysis_layer)
 llm_attr = LLMGradientAttribution(lig, tokenizer)
@@ -86,11 +86,12 @@ def save_combined_sequence_attributions(cm_prompts, cmp_prompts, safe_responses,
             tokens_cmp = attr_cmp.input_tokens
             scores_cmp = attr_cmp.seq_attr.detach().cpu().tolist()
 
+            # One row for this prompt pair
             records.append({
-                'tokens_cm': json.dumps(tokens_cm),
-                'cm_attribution_score': json.dumps(scores_cm),
-                'tokens_cmp': json.dumps(tokens_cmp),
-                'cmp_attribution_score': json.dumps(scores_cmp),
+                'tokens_cm': tokens_cm,
+                'cm_attribution_score': scores_cm,
+                'tokens_cmp': tokens_cmp,
+                'cmp_attribution_score': scores_cmp,
                 'output_prompt': safe_responses[i]
             })
 
