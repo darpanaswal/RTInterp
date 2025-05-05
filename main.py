@@ -66,34 +66,58 @@ def process_sequence_attributions(cm_prompts, cmp_prompts, prefix):
                 except Exception as e:
                     print(f"Failed {label} sequence attribution for prompt {i}: {e}")
 
-def process_token_attributions(cm_prompts, cmp_prompts, prefix):
-    base_dir = f"{prefix}_token_attributions"
-    os.makedirs(base_dir, exist_ok=True)
+def save_combined_sequence_attributions(cm_prompts, cmp_prompts, safe_responses, prefix):
+    records = []
 
-    # Create subdirectories for cm and cmp
-    cm_dir = os.path.join(base_dir, "cm")
-    cmp_dir = os.path.join(base_dir, "cmp")
-    os.makedirs(cm_dir, exist_ok=True)
-    os.makedirs(cmp_dir, exist_ok=True)
+    num_samples = min(len(cm_prompts), len(cmp_prompts), len(safe_responses))
 
-    max_len = max(len(cm_prompts), len(cmp_prompts))
+    for i in range(num_samples):
+        print(f"Processing sequence attribution for sample {i+1}/{num_samples}")
+        try:
+            # CM attribution
+            inp_cm = TextTokenInput(cm_prompts[i], tokenizer, skip_tokens=skip_tokens)
+            attr_cm = llm_attr.attribute(inp_cm, target=safe_responses[i], skip_tokens=skip_tokens)
+            tokens_cm = attr_cm.input_tokens
+            scores_cm = attr_cm.seq_attr.detach().cpu().tolist()
 
-    for i in range(max_len):
-        for label, prompt_list, sub_dir in [('cm', cm_prompts, cm_dir), ('cmp', cmp_prompts, cmp_dir)]:
-            if i < len(prompt_list):
-                print(f"Processing {label} token attribution for prompt {i+1}/{len(prompt_list)}")
-                try:
-                    inp = TextTokenInput(prompt_list[i], tokenizer, skip_tokens=skip_tokens)
-                    attr_res = llm_attr.attribute(inp, target=safe_responses[i], skip_tokens=skip_tokens)
+            # CMP attribution
+            inp_cmp = TextTokenInput(cmp_prompts[i], tokenizer, skip_tokens=skip_tokens)
+            attr_cmp = llm_attr.attribute(inp_cmp, target=safe_responses[i], skip_tokens=skip_tokens)
+            tokens_cmp = attr_cmp.input_tokens
+            scores_cmp = attr_cmp.seq_attr.detach().cpu().tolist()
 
-                    fig_tok, _ = attr_res.plot_token_attr(show=False)
-                    tok_filename = os.path.join(sub_dir, f"{label}_token_attribution_plot_{i:03d}.png")
-                    fig_tok.savefig(tok_filename, dpi=300, bbox_inches='tight')
-                    plt.close(fig_tok)
-                except Exception as e:
-                    print(f"Failed {label} token attribution for prompt {i}: {e}")
+            # Sanity check: token alignment (optional, depending on your data quality)
+            if tokens_cm != tokens_cmp:
+                print(f"Warning: Token mismatch at index {i}, aligning by index.")
+                min_len = min(len(tokens_cm), len(tokens_cmp))
+                tokens = tokens_cm[:min_len]
+                scores_cm = scores_cm[:min_len]
+                scores_cmp = scores_cmp[:min_len]
+            else:
+                tokens = tokens_cm
 
+            for t, s_cm, s_cmp in zip(tokens, scores_cm, scores_cmp):
+                records.append({
+                    'tokens': t,
+                    'cm_attribution_score': s_cm,
+                    'cmp_attribution_score': s_cmp,
+                    'output_prompt': safe_responses[i]  # Raw string
+                })
 
-# Run both functions
-process_sequence_attributions(cm, cmp, prefix=layer_name)
-print("All attribution plots saved.")
+        except Exception as e:
+            print(f"Failed attribution at index {i}: {e}")
+
+    df = pd.DataFrame(records)
+    output_path = f"{prefix}_combined_sequence_attributions.csv"
+    df.to_csv(output_path, index=False)
+    print(f"Saved combined attribution DataFrame to: {output_path}")
+
+start, end = 10, 15
+
+# Slice the relevant prompt and response lists
+cm_subset = cm[start:end].tolist()
+cmp_subset = cmp[start:end].tolist()
+safe_responses_subset = safe_responses[start:end].tolist()
+
+# Call the function with the subset
+save_combined_sequence_attributions(cm_subset, cmp_subset, safe_responses_subset, prefix=f"{layer_name}_11to15")
