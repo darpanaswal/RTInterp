@@ -86,23 +86,13 @@ def save_combined_sequence_attributions(cm_prompts, cmp_prompts, safe_responses,
             tokens_cmp = attr_cmp.input_tokens
             scores_cmp = attr_cmp.seq_attr.detach().cpu().tolist()
 
-            # Sanity check: token alignment (optional, depending on your data quality)
-            if tokens_cm != tokens_cmp:
-                print(f"Warning: Token mismatch at index {i}, aligning by index.")
-                min_len = min(len(tokens_cm), len(tokens_cmp))
-                tokens = tokens_cm[:min_len]
-                scores_cm = scores_cm[:min_len]
-                scores_cmp = scores_cmp[:min_len]
-            else:
-                tokens = tokens_cm
-
-            for t, s_cm, s_cmp in zip(tokens, scores_cm, scores_cmp):
-                records.append({
-                    'tokens': t,
-                    'cm_attribution_score': s_cm,
-                    'cmp_attribution_score': s_cmp,
-                    'output_prompt': safe_responses[i]  # Raw string
-                })
+            records.append({
+                'tokens_cm': json.dumps(tokens_cm),
+                'cm_attribution_score': json.dumps(scores_cm),
+                'tokens_cmp': json.dumps(tokens_cmp),
+                'cmp_attribution_score': json.dumps(scores_cmp),
+                'output_prompt': safe_responses[i]
+            })
 
         except Exception as e:
             print(f"Failed attribution at index {i}: {e}")
