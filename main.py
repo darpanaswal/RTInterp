@@ -104,7 +104,7 @@ def save_combined_sequence_attributions(cm_prompts, cmp_prompts, eng_prompts, sa
             print(f"Failed attribution at index {i}: {e}")
 
     df = pd.DataFrame(records)
-    output_path = f"{prefix}_combined_sequence_attributions.csv"
+    output_path = f"{prefix}_seq_attrib.csv"
     df.to_csv(output_path, index=False)
     print(f"Saved combined attribution DataFrame to: {output_path}")
 
