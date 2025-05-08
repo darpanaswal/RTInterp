@@ -79,7 +79,7 @@ def save_combined_sequence_attributions(cm_prompts, cmp_prompts, eng_prompts, sa
         try:
             # English attribution
             inp_eng = TextTokenInput(eng_prompts[i], tokenizer, skip_tokens=skip_tokens)
-            attr_eng = llm_attr.attribute(inp_cm, target=safe_responses[i], skip_tokens=skip_tokens)
+            attr_eng = llm_attr.attribute(inp_eng, target=safe_responses[i], skip_tokens=skip_tokens)
             tokens_eng = attr_eng.input_tokens
             scores_eng = attr_eng.seq_attr.detach().cpu().tolist()
             # # CM attribution
